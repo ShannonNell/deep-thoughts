@@ -1,3 +1,4 @@
+const { AuthenticationError } = require('apollo-server-express');
 const { User, Thought } = require('../models');
 
 // resolver serves as the response for the helloWorld query in typeDefs.js
@@ -15,7 +16,7 @@ const resolvers = {
         },
         // get all users
         users: async () => {
-            return User.find() 
+            return User.find()
                 .select('-__v -password')
                 .populate('friends')
                 .populate('thoughts');
@@ -26,6 +27,28 @@ const resolvers = {
                 .select('-__v -password')
                 .populate('friends')
                 .populate('thoughts');
+        }
+    },
+    Mutation: {
+        addUser: async (parent, args) => {
+            const user = await User.create(args);
+
+            return user;
+        },
+        login: async (parent, { email, password }) => {
+            const user = await User.findOne({ email });
+
+            if (!user) {
+                throw new AuthenticationError('Incorrect credentials');
+            }
+
+            const correctPw = await user.isCorrectPassword(password);
+
+            if (!correctPw) {
+                throw new AuthenticationError('Incorrect credentials');
+            }
+
+            return user;
         }
     }
 };
