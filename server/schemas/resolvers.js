@@ -1,9 +1,24 @@
 const { AuthenticationError } = require('apollo-server-express');
 const { User, Thought } = require('../models');
+const { signToken } = require('../utils/auth');
 
 // resolver serves as the response for the helloWorld query in typeDefs.js
 const resolvers = {
     Query: {
+        // me method
+        me: async (parent, args, context) => {
+            if (context.user) {
+
+                const userData = await User.findOne({})
+                    .select('-__v -password')
+                    .populate('thoughts')
+                    .populate('friends');
+    
+                return userData;
+            }
+
+            throw new AuthenticationError('Not logged in');
+        },
         // get all thoughts
         thoughts: async (parent, { username }) => {
             // ? checks if username exists; if yes, set params to an object with username key set to the vlaue, otherwise return empty object
@@ -32,8 +47,9 @@ const resolvers = {
     Mutation: {
         addUser: async (parent, args) => {
             const user = await User.create(args);
+            const token = signToken(user)
 
-            return user;
+            return { token, user };
         },
         login: async (parent, { email, password }) => {
             const user = await User.findOne({ email });
@@ -48,7 +64,8 @@ const resolvers = {
                 throw new AuthenticationError('Incorrect credentials');
             }
 
-            return user;
+            const token = signToken(user);
+            return { token, user };
         }
     }
 };
